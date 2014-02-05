@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <uses-sdk
-        android:minSdkVersion="8"
+        android:minSdkVersion="12"
         android:targetSdkVersion="17" />
 
     <application
@@ -38,8 +38,6 @@
 
         <service android:name="net.tetsuo83.netexp.NetworkConfigService" >
         </service>
-        <service android:name="net.tetsuo83.netexp.RecordTCPDumpService" >
-        </service>
         <service android:name="net.tetsuo83.netexp.RecordNetworkInfoService" >
         </service>
         
@@ -51,6 +49,7 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.ms.networkmonitor.MainActivity" />
         </activity>
+        <service android:permission="android.permission.INTERNET" android:name="net.tetsuo83.nrlexpupload.NrlExpUploadService"></service>
     </application>
 
 </manifest>

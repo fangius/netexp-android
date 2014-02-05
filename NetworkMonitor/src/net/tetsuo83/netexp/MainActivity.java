@@ -35,22 +35,6 @@ public class MainActivity extends Activity {
     		Intent i=new Intent(this,ServicesActivity.class);
     		startActivity(i);
     }
-
-    public void callTCPDumpService(View view){
-    	Intent i=new Intent(this,RecordTCPDumpService.class);
-    	CheckBox chk=(CheckBox) findViewById(R.id.checkBox1);
-    	if(chk.isChecked())
-    		i.putExtra("dump", "binary");
-    	else
-    		i.putExtra("dump", "txt");
-    		startService(i);
-    }
-    
-    public void stopTCPDumpService(View view)
-    {
-    	Intent intent=new Intent(this,RecordTCPDumpService.class);
-    		stopService(intent);
-    }
     
     public void startRecordingNetworkInfo(View view)
     {

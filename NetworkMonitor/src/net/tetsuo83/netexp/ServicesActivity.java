@@ -10,7 +10,6 @@ import android.app.ActivityManager.RunningAppProcessInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.v4.app.NavUtils;
 import android.util.Log;
 import android.util.SparseBooleanArray;
 import android.view.Menu;
@@ -41,7 +40,7 @@ public class ServicesActivity extends Activity {
 	    listView.setItemChecked(2,true);
 		ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_multiple_choice, values);		    
 	    listView.setAdapter(adapter);
-	    getActionBar().setDisplayHomeAsUpEnabled(true);
+	    //getActionBar().setDisplayHomeAsUpEnabled(true);
 	    getRunningProcesses();
 	    getChoice.setOnClickListener(new Button.OnClickListener(){
             @Override
@@ -90,7 +89,7 @@ public class ServicesActivity extends Activity {
 			//
 			// http://developer.android.com/design/patterns/navigation.html#up-vs-back
 			//
-			NavUtils.navigateUpFromSameTask(this);
+			//NavUtils.navigateUpFromSameTask(this);
 			return true;
 		}
 		return super.onOptionsItemSelected(item);

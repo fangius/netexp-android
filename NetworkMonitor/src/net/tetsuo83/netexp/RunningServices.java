@@ -15,7 +15,6 @@ import android.net.NetworkInfo;
 import android.net.TrafficStats;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.support.v4.app.NavUtils;
 import android.text.method.ScrollingMovementMethod;
 import android.view.MenuItem;
 import android.widget.TextView;
@@ -39,14 +38,15 @@ public class RunningServices extends Activity {
 			//
 			// http://developer.android.com/design/patterns/navigation.html#up-vs-back
 			//
-			NavUtils.navigateUpFromSameTask(this);
+			
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
 	}
 	
-	public void startMonitoring(){
-    	networkStats();
+	public void startMonitoring()
+	{
+    		networkStats();
 	}
 	public String intToIP(int i) {
 	    return ( i & 0xFF) + "." +
