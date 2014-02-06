@@ -10,6 +10,7 @@ import java.io.OutputStreamWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 import net.tetsuo83.netexp.console.ReadCommandThread;
 import net.tetsuo83.nrlexpupload.NrlExpUploadService;
@@ -19,6 +20,7 @@ import android.app.AlarmManager;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.app.ActivityManager.RunningAppProcessInfo;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -35,17 +37,16 @@ import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
 
-public class RecordNetworkInfoService extends Service {
+public class NetworkInfoService extends Service {
 	
-	private static final long DURATION = 60*2*(1000000000L);
+	private static final long DURATION = 60*2*(1000000000L)*30;
 	private static final long FLUSH_FREQ = 60000000000L;
-	private static final int CLOCK_TIMER=5000;
+	private static final int CLOCK_TIMER=10000;
 	private static final String filename="networkInfo";
 	
 	private static final String INIT = System.nanoTime() +"";
 	
 	NotificationManager mNM;
-    RunningServices rs;
 	AlarmManager mgr;
 	PendingIntent pi;
 	ActivityManager am;
@@ -60,18 +61,23 @@ public class RecordNetworkInfoService extends Service {
 	FileWriter configFw;
 	BufferedWriter configBfw;
 	File configfile;
-	String configFileName="netconf"+ INIT +".txt";
+	String configFileName="netconf"+ INIT;
+	
+	FileWriter processesFw;
+	BufferedWriter processesBfw;
+	File processesfile;
+	String processesFileName="processes"+ INIT ;
 	
 	
 	FileOutputStream ipConfFw;
 	BufferedOutputStream ipConfBfw;
 	File ipConffile;
-	String ipConfFileName="ipConfig"+ INIT +".txt";
+	String ipConfFileName="ipConfig"+ INIT ;
 	
 	FileOutputStream netstatFw;
 	BufferedOutputStream netstatBfw;
 	File netstatfile;
-	String netstatFileName="netstat"+ INIT +".txt";
+	String netstatFileName="netstat"+ INIT ;
 	
 	BroadcastReceiver mBatteryReceiver;
 	BroadcastReceiver cWifiReceiver;
@@ -107,16 +113,20 @@ public class RecordNetworkInfoService extends Service {
 		 configfile= new File(Environment.getExternalStorageDirectory(),configFileName);
 		 ipConffile= new File(Environment.getExternalStorageDirectory(), ipConfFileName);
 		 netstatfile= new File(Environment.getExternalStorageDirectory(), netstatFileName);
-		 
+		 processesfile = new File(Environment.getExternalStorageDirectory(), processesFileName);
 		 try{
 			 configFw=new FileWriter(configfile,true);	
 			 configBfw = new BufferedWriter(configFw,4096);
+			 
+			 processesFw=new FileWriter(processesfile,true);	
+			 processesBfw = new BufferedWriter(processesFw,4096);
+			 
 			 
 			 ipConfFw= new FileOutputStream(ipConffile);
 			 ipConfBfw= new BufferedOutputStream(ipConfFw);
 			 
 			 netstatFw= new FileOutputStream(netstatfile);
-			 netstatBfw= new BufferedOutputStream(ipConfFw);
+			 netstatBfw= new BufferedOutputStream(netstatFw);
 			 
 		 }
 		 catch(IOException e){
@@ -132,7 +142,7 @@ public class RecordNetworkInfoService extends Service {
 		 
 		 mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 		 mgr=(AlarmManager)this.getSystemService(Context.ALARM_SERVICE);
-		 Intent i=new Intent(this, RecordNetworkInfoService.class);
+		 Intent i=new Intent(this, NetworkInfoService.class);
 
 		 pi=PendingIntent.getService(this, 0, i, 0);
 		 
@@ -163,7 +173,39 @@ public class RecordNetworkInfoService extends Service {
 		return START_STICKY;
 	}
 	
-	private void writeLogLine(boolean connectivityChange, boolean batteryChange)
+	 protected List<RunningAppProcessInfo> getRunningProcesses(){
+	    	ActivityManager am = (ActivityManager)this.getSystemService(Context.ACTIVITY_SERVICE);;
+	    	List<RunningAppProcessInfo> process_list=am.getRunningAppProcesses();
+	    	return process_list;
+	    }
+	 
+	 public void logProcesses(String now) {
+			List<RunningAppProcessInfo> list_running_process=getRunningProcesses();
+
+		    String display_string="\n--------------------" + now + "\n";
+		    
+		    try
+		    {
+		    		processesBfw.append(display_string);
+			    for(int i = 0; i < list_running_process.size(); i++)
+			    {
+				    			display_string="\n" + list_running_process.get(i).processName
+				    					+ " \t "+TrafficStats.getUidRxBytes(list_running_process.get(i).uid) 
+				    					+ " \t "+TrafficStats.getUidTxBytes(list_running_process.get(i).uid)
+		    							+ " \t "+TrafficStats.getUidRxBytes(list_running_process.get(i).uid) 
+		    							+ " \t "+TrafficStats.getUidTxBytes(list_running_process.get(i).uid);
+					    		processesBfw.append(display_string);	    	
+			    }
+		    } catch(IOException e)
+				{
+					Log.e(NetworkInfoService.class.toString(), "Error while logging service network use");
+				}	
+	 }	 
+	
+	
+	
+	
+	private synchronized void writeLogLine(boolean connectivityChange, boolean batteryChange)
 	{
 		 info = wifi.getConnectionInfo();	
 		 d_info=wifi.getDhcpInfo();
@@ -171,15 +213,19 @@ public class RecordNetworkInfoService extends Service {
 		 ni=cm.getActiveNetworkInfo();
 		 long now = System.nanoTime();
 		 boolean terminating = applicationEnd < now ;
-		 ReadCommandThread ipThread = new ReadCommandThread(ipConfBfw, new String[] {"netcfg"}, 0, 1, now+"");
-		 ReadCommandThread netstatThread = new ReadCommandThread(netstatBfw, new String[] {"netstat"}, 0, 1, now+"");
-		 
+		 ReadCommandThread ipThread = new ReadCommandThread(ipConfBfw, ipConffile.getAbsoluteFile().toString(), 
+				 new String[] {"netcfg"},
+				 0, 1, now+"");
+		 ReadCommandThread netstatThread = new ReadCommandThread(netstatBfw, 
+				 netstatfile.getAbsoluteFile().toString(), new String[] {"netstat"},
+				 0, 1, now+"");
+		 logProcesses(now+"");
 		 
 		 String o_string="\n"
 				 + now
 				 + "\t" + mCurrentBatteryLevel
 				 + "\t" + "\"" + info.toString() + "\""
-				 + "\t" + "\"" + ni.toString() + "\""
+				 + "\t" + "\"" + (ni != null ? ni.toString() : "\"null\"") + "\""
 				 + "\t" + intToIP(d_info.ipAddress)
 				 + "\t" + intToIP(d_info.serverAddress)
 				 + "\t" + intToIP(d_info.gateway)
@@ -198,7 +244,9 @@ public class RecordNetworkInfoService extends Service {
 	    	try{
 	    			ipThread.start();
 	   		 	netstatThread.start();
-	    			Log.i(RecordNetworkInfoService.class.toString(), "Logging Network Status");
+	   		 	ipThread.join();
+	   		 	netstatThread.join();
+	    			Log.i(NetworkInfoService.class.toString(), "Logging Network Status");
 				configBfw.append(o_string);
 				if (lastFlush < 0 || lastFlush < System.nanoTime() - FLUSH_FREQ || terminating) 
 				{
@@ -206,6 +254,7 @@ public class RecordNetworkInfoService extends Service {
 					configBfw.flush();
 					ipConfBfw.flush();
 					netstatBfw.flush();
+					processesBfw.flush();
 					lastFlush = System.nanoTime();
 					Log.i("Network info", "FLUSHING: " + configFileName);
 					
@@ -217,7 +266,9 @@ public class RecordNetworkInfoService extends Service {
 						 configBfw.flush();
 						 ipConfBfw.flush();
 						 netstatBfw.flush();
+						 processesBfw.flush();
 						 configBfw.close();
+						 processesBfw.close();
 						 ipConfBfw.close();
 						netstatBfw.close();
 						terminated = true;
@@ -259,9 +310,18 @@ public class RecordNetworkInfoService extends Service {
 		intent3.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
 		intent3.putExtra(UploadEntry.ONLY_WIFI,false);
 		intent3.putExtra(UploadEntry.NAME,netstatFileName);
+		
+		Intent intent4=new Intent(this,NrlExpUploadService.class);
+		intent4.putExtra(UploadEntry.DELETE_AFTER,false);
+		intent4.putExtra(UploadEntry.FILE, processesfile.getAbsolutePath());
+		intent4.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
+		intent4.putExtra(UploadEntry.ONLY_WIFI,false);
+		intent4.putExtra(UploadEntry.NAME,processesFileName);
+		
 		startService(intent);
 		startService(intent2);
 		startService(intent3);
+		startService(intent4);
 	}
 
 	public void removeIntents()

@@ -4,12 +4,6 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity" >
 
-    <ImageView
-        android:id="@+id/imageView1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/loading" />
-
     <TextView
         android:id="@+id/textView1"
         android:layout_width="wrap_content"
@@ -20,56 +14,19 @@
         android:scrollbars="vertical" />
 
     <Button
-        android:id="@+id/button7"
+        android:id="@+id/cnStopButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:onClick="callService"
-        android:text="@string/services" />
-
-    <Button
-        android:id="@+id/button4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignBottom="@+id/button3"
+        android:layout_alignBottom="@+id/cnButton"
         android:layout_alignParentRight="true"
         android:onClick="stopRecordingNetworkInfo"
         android:text="@string/stop_network_info" />
 
     <Button
-        android:id="@+id/button6"
+        android:id="@id/cnButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignTop="@+id/textView1"
-        android:onClick="callTCPDumpService"
-        android:text="@string/service_tcpdump_start" />
-
-    <Button
-        android:id="@+id/button2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentRight="true"
-        android:layout_alignTop="@+id/textView1"
-        android:onClick="stopTCPDumpService"
-        android:text="@string/service_tcpdump_stop" />
-
-    <CheckBox
-        android:id="@+id/checkBox1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_below="@+id/button6"
-        android:text="@string/binary_output" />
-
-    <Button
-        android:id="@+id/button3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_above="@+id/button7"
-        android:layout_alignParentLeft="true"
-        android:layout_marginBottom="18dp"
+        android:layout_marginTop="25dp"
         android:onClick="startRecordingNetworkInfo"
         android:text="@string/capture_network_info" />
 

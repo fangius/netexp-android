@@ -22,29 +22,32 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-    	
-    	getMenuInflater().inflate(R.menu.activity_main, menu);
-    	
-        return true;
-    }
-    
-    public void callService(View view)
+    public boolean onCreateOptionsMenu(Menu menu) 
     {
-    		Intent i=new Intent(this,ServicesActivity.class);
-    		startActivity(i);
+        // Inflate the menu; this adds items to the action bar if it is present.
+    		getMenuInflater().inflate(R.menu.activity_main, menu);
+        return true;
     }
     
     public void startRecordingNetworkInfo(View view)
     {
-    		Intent intent=new Intent(this,RecordNetworkInfoService.class);
+    		Intent intent=new Intent(this,NetworkInfoService.class);
     		startService(intent);
+    }
+    
+    public void startNetworkUse()
+    {
+    	
+    }
+    
+    public void stopNetworkUse()
+    {
+    	
     }
     
     public void stopRecordingNetworkInfo(View view)
     {
-    	Intent intent=new Intent(this,RecordNetworkInfoService.class);
+    	Intent intent=new Intent(this,NetworkInfoService.class);
     		stopService(intent);
     }
 }

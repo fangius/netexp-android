@@ -36,9 +36,9 @@
                 android:value="com.ms.networkmonitor.MainActivity" />
         </activity>
 
-        <service android:name="net.tetsuo83.netexp.NetworkConfigService" >
+        <service android:name="net.tetsuo83.netexp.NetworkUseService" >
         </service>
-        <service android:name="net.tetsuo83.netexp.RecordNetworkInfoService" >
+        <service android:name="net.tetsuo83.netexp.NetworkInfoService" >
         </service>
         
         <activity

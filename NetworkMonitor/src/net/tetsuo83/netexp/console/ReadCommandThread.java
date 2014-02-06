@@ -1,10 +1,12 @@
 package net.tetsuo83.netexp.console;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.text.DateFormat;
@@ -28,13 +30,13 @@ public class ReadCommandThread extends Thread
 	boolean normallyEnded;
 	String separator;
 	
-    public ReadCommandThread(OutputStream out, String[] command, int interval, int repeats)
+    public ReadCommandThread(OutputStream out, String file, String[] command, int interval, int repeats)
     {
-    		this(out, command, interval, repeats, "----------------------");
+    		this(out, file, command, interval, repeats, "----------------------");
     		
 	}
     
-    public ReadCommandThread(OutputStream out, String[] command, int interval, int repeats, String separator)
+    public ReadCommandThread(OutputStream out, String file, String[] command, int interval, int repeats, String separator)
     {
 		this.out = new DataOutputStream(out);
 		this.command = command;
@@ -44,31 +46,34 @@ public class ReadCommandThread extends Thread
     }
 	
 	public void run(){
-		try{
-			
+		try{		
 				int iterations = 0;
-				proc = Runtime.getRuntime().exec(command);			
-				BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream())); 
-				String line;
+
+				byte[] buf = new byte[4096];
+				int read;
+				
 				while(iterations < repeats)
 				{
-					out.writeChars(separator + "-" + iterations);
-					while ((line=reader.readLine()) != null)
+					out.writeUTF("\n" +separator + "-" + iterations + "\n");
+					proc = Runtime.getRuntime().exec(command);		
+					Log.i("RISULTATO FINALE" , proc.waitFor()+"");
+					InputStream reader = proc.getInputStream(); 
+					boolean flag = false;
+					
+					while ((read = reader.read(buf)) > 0)
 					{
-							out.writeChars(line);
-							out.write('\n');
-							Log.i(ReadCommandThread.class+"","Writing line");
+							if (read > 0) out.write(buf,0, read);
 					}
-					proc.destroy();
+					iterations++;
 					if (repeats > 1) Thread.sleep(interval);
 				}
-				
-		} catch(IOException e){
+		} catch(IOException e)
+		{
 			 normallyEnded = false;
-			 Log.e(ReadCommandThread.class+"",e.getMessage());
+			 Log.e(ReadCommandThread.class+"", e.toString() + " " + e.getMessage());
 		} catch (InterruptedException e)
 		{
-			normallyEnded = true;
+			normallyEnded = false;
 			Log.e(ReadCommandThread.class+"", "Thread Interrupted while waiting for next iteration");
 		}
 		normallyEnded = true;
