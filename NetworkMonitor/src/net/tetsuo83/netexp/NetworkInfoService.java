@@ -138,7 +138,8 @@ public class NetworkInfoService extends Service {
 	 }
 	 
 	 
-	 private void initIntents() {
+	 private void initIntents() 
+	 {
 		 
 		 mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 		 mgr=(AlarmManager)this.getSystemService(Context.ALARM_SERVICE);
@@ -169,7 +170,6 @@ public class NetworkInfoService extends Service {
 	@Override
 	 public int onStartCommand(Intent intent, int flags, int startId) { 
 		writeLogLine(false,false);
-		
 		return START_STICKY;
 	}
 	
@@ -294,28 +294,24 @@ public class NetworkInfoService extends Service {
 		intent.putExtra(UploadEntry.DELETE_AFTER,false);
 		intent.putExtra(UploadEntry.FILE,configfile.getAbsolutePath());
 		intent.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
-		intent.putExtra(UploadEntry.ONLY_WIFI,false);
 		intent.putExtra(UploadEntry.NAME,configFileName);
 		
 		Intent intent2=new Intent(this,NrlExpUploadService.class);
 		intent2.putExtra(UploadEntry.DELETE_AFTER,false);
 		intent2.putExtra(UploadEntry.FILE, ipConffile.getAbsolutePath());
 		intent2.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
-		intent2.putExtra(UploadEntry.ONLY_WIFI,false);
 		intent2.putExtra(UploadEntry.NAME,ipConfFileName);
 		
 		Intent intent3=new Intent(this,NrlExpUploadService.class);
 		intent3.putExtra(UploadEntry.DELETE_AFTER,false);
 		intent3.putExtra(UploadEntry.FILE, netstatfile.getAbsolutePath());
 		intent3.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
-		intent3.putExtra(UploadEntry.ONLY_WIFI,false);
 		intent3.putExtra(UploadEntry.NAME,netstatFileName);
 		
 		Intent intent4=new Intent(this,NrlExpUploadService.class);
 		intent4.putExtra(UploadEntry.DELETE_AFTER,false);
 		intent4.putExtra(UploadEntry.FILE, processesfile.getAbsolutePath());
 		intent4.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
-		intent4.putExtra(UploadEntry.ONLY_WIFI,false);
 		intent4.putExtra(UploadEntry.NAME,processesFileName);
 		
 		startService(intent);

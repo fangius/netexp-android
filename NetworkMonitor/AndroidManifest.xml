@@ -27,28 +27,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="net.tetsuo83.netexp.RunningServices"
-            android:label="@string/title_activity_running_services"
-            android:parentActivityName="net.tetsuo83.netexp.MainActivity" >
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.ms.networkmonitor.MainActivity" />
-        </activity>
-
-        <service android:name="net.tetsuo83.netexp.NetworkUseService" >
-        </service>
         <service android:name="net.tetsuo83.netexp.NetworkInfoService" >
         </service>
-        
-        <activity
-            android:name="net.tetsuo83.netexp.ServicesActivity"
-            android:label="@string/title_activity_services"
-            android:parentActivityName="net.tetsuo83.netexp.MainActivity" >
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.ms.networkmonitor.MainActivity" />
-        </activity>
         <service android:permission="android.permission.INTERNET" android:name="net.tetsuo83.nrlexpupload.NrlExpUploadService"></service>
     </application>
 
