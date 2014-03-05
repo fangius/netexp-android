@@ -2,17 +2,28 @@ package net.tetsuo83.netexp;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.zip.ZipFile;
 
 import net.tetsuo83.netexp.console.ReadCommandThread;
+import net.tetsuo83.netexp.zip.ZipFiles;
+import net.tetsuo83.netexp.zip.ZipParameters;
 import net.tetsuo83.nrlexpupload.NrlExpUploadService;
 import net.tetsuo83.nrlexpupload.UploadEntry;
 import android.app.ActivityManager;
@@ -39,12 +50,10 @@ import android.util.Log;
 
 public class NetworkInfoService extends Service {
 	
-	private static final long DURATION = 60*2*(1000000000L)*30;
-	private static final long FLUSH_FREQ = 60000000000L;
+	private static final int ITERATIONS = 24*7;
+	private static final long DURATION = 60L*(1000L)*60L;
 	private static final int CLOCK_TIMER=10000;
-	private static final String filename="networkInfo";
-	
-	private static final String INIT = System.nanoTime() +"";
+	private static final long FLUSH_FREQ = 60000000000L;
 	
 	NotificationManager mNM;
 	AlarmManager mgr;
@@ -57,37 +66,50 @@ public class NetworkInfoService extends Service {
 	DhcpInfo d_info;
 	WifiManager wifi;
 	ConnectivityManager cm;
-
+	
 	FileWriter configFw;
 	BufferedWriter configBfw;
 	File configfile;
-	String configFileName="netconf"+ INIT;
+	String configFileName;
+	File configfileGzip;
+	String configFileNameGzip;
 	
 	FileWriter processesFw;
 	BufferedWriter processesBfw;
 	File processesfile;
-	String processesFileName="processes"+ INIT ;
-	
+	String processesFileName;
+	File processesfileGzip;
+	String processesFileNameGzip;
 	
 	FileOutputStream ipConfFw;
 	BufferedOutputStream ipConfBfw;
 	File ipConffile;
-	String ipConfFileName="ipConfig"+ INIT ;
+	String ipConfFileName;
+	File ipConffileGzip;
+	String ipConfFileNameGzip;
 	
 	FileOutputStream netstatFw;
 	BufferedOutputStream netstatBfw;
 	File netstatfile;
-	String netstatFileName="netstat"+ INIT ;
+	String netstatFileName;
+	File netstatfileGzip;
+	String netstatFileNameGzip;
 	
 	BroadcastReceiver mBatteryReceiver;
 	BroadcastReceiver cWifiReceiver;
-	int mCurrentBatteryLevel;
-	long applicationStart;
-	long applicationEnd;
-	long lastFlush;
+	
+	int 				mCurrentBatteryLevel;
+	long				lastFlush;
+	
+	
+	ExperimentSchedule eS;
 	
 	boolean terminated;
     
+	String			dataDirName;
+	File				dataDir;		
+	File				expFile;
+	
     private static String getDateTime() {
         DateFormat dateFormat = new SimpleDateFormat("MM-dd-yy.HH-mm-ss");
         Date date = new Date();
@@ -108,12 +130,53 @@ public class NetworkInfoService extends Service {
 	}
 	
 	 @Override
-	    public void onCreate() {
-	     initIntents();
-		 configfile= new File(Environment.getExternalStorageDirectory(),configFileName);
-		 ipConffile= new File(Environment.getExternalStorageDirectory(), ipConfFileName);
-		 netstatfile= new File(Environment.getExternalStorageDirectory(), netstatFileName);
-		 processesfile = new File(Environment.getExternalStorageDirectory(), processesFileName);
+	public void onCreate() 
+	 {
+		 long now = System.currentTimeMillis();
+		 
+		 cm=(ConnectivityManager)this.getSystemService(CONNECTIVITY_SERVICE);
+		 wifi = (WifiManager) getSystemService(WIFI_SERVICE);
+	     
+		 loadExperiment();
+		 setFiles();
+		 initIntents();
+	 }
+	 
+	 private synchronized void prepareIteration(long now)
+	 {
+		 while(eS.getCurrentIteration() < eS.iterationWindow(now) && !eS.isClosed())
+		 {
+			 Log.i(NetworkInfoService.class.getCanonicalName(), "preparing new iteration: " + eS.getCurrentIteration());
+			 endIteration();
+			 eS.advanceIteration();
+			 saveExperiment(); // TODO if fails here state becomes incoherent
+			 setFiles();
+		 }
+		 
+	 }
+	 
+	 private void setFiles() 
+	 {
+		 closeFiles();
+		 
+		 configFileName ="netconf"+ eS.getStart() + "." + eS.getCurrentIteration();
+		 configFileNameGzip ="netconf"+ eS.getStart() + "." + eS.getCurrentIteration() + ".gz";
+		 processesFileName ="processes"+ eS.getStart() + "." + eS.getCurrentIteration();
+		 processesFileNameGzip ="processes"+ eS.getStart() + "." + eS.getCurrentIteration() + ".gz";
+		 ipConfFileName ="ipConfig"+ eS.getStart() + "." + eS.getCurrentIteration();
+		 ipConfFileNameGzip ="ipConfig"+ eS.getStart() + "." + eS.getCurrentIteration() + ".gz";
+		 netstatFileName="netstat"+ eS.getStart() + "." + eS.getCurrentIteration();
+		 netstatFileNameGzip="netstat"+ eS.getStart() + "." + eS.getCurrentIteration() + ".gz";
+		 
+		 configfile= new File(dataDir,configFileName);
+		 configfileGzip = new File(dataDir, configFileNameGzip);
+		 ipConffile= new File(dataDir, ipConfFileName);
+		 ipConffileGzip = new File(dataDir, ipConfFileNameGzip);
+		 netstatfile= new File(dataDir, netstatFileName);
+		 netstatfileGzip = new File(dataDir, netstatFileNameGzip);
+		 processesfile = new File(dataDir, processesFileName);
+		 processesfileGzip = new File(dataDir, processesFileNameGzip);
+		 
 		 try{
 			 configFw=new FileWriter(configfile,true);	
 			 configBfw = new BufferedWriter(configFw,4096);
@@ -122,23 +185,95 @@ public class NetworkInfoService extends Service {
 			 processesBfw = new BufferedWriter(processesFw,4096);
 			 
 			 
-			 ipConfFw= new FileOutputStream(ipConffile);
+			 ipConfFw= new FileOutputStream(ipConffile, true);
 			 ipConfBfw= new BufferedOutputStream(ipConfFw);
 			 
-			 netstatFw= new FileOutputStream(netstatfile);
+			 netstatFw= new FileOutputStream(netstatfile, true);
 			 netstatBfw= new BufferedOutputStream(netstatFw);
 			 
 		 }
 		 catch(IOException e){
 			 Log.i("FileWriter error",e.getMessage());
 		 }
-		 mgr.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), CLOCK_TIMER, pi);
-		 cm=(ConnectivityManager)this.getSystemService(CONNECTIVITY_SERVICE);
-		 wifi = (WifiManager) getSystemService(WIFI_SERVICE);
-	 }
+		
+	}
 	 
-	 
-	 private void initIntents() 
+	private void loadExperiment() 
+	{
+		dataDirName = Environment.getExternalStorageDirectory() + File.separator + "NETINFO";
+		dataDir = new File(dataDirName);
+		
+		if (!dataDir.exists())
+		{
+			dataDir.mkdirs();
+		}
+		
+		expFile = new File(dataDir,"EXPINFO");
+		boolean rst;
+		
+		if (!expFile.exists())
+			rst = createExperiment();
+		else
+			rst = readExperiment();
+		if (!rst) 
+		{
+			Log.e(NetworkInfo.class.getCanonicalName(), "Impossible to load/create experiment file, Safe Stop now");
+			this.stopSelf();
+		}
+			
+	}
+
+	private boolean createExperiment()
+	{
+		eS = new ExperimentSchedule(System.currentTimeMillis(), ITERATIONS, DURATION);
+		return saveExperiment();
+	}
+	
+	private boolean readExperiment()
+	{
+		FileInputStream inS; 
+		ObjectInputStream dIn;
+		
+		try
+		{
+			inS = new FileInputStream(expFile);
+			dIn = new ObjectInputStream(inS);
+			
+			eS = (ExperimentSchedule) dIn.readObject();
+			dIn.close();
+			return true;
+		} catch (Exception e)
+		{
+			Log.e(NetworkInfo.class.getCanonicalName(), "Impossible to read experiment file");
+		}
+		return false;
+	}
+	
+	private boolean saveExperiment()
+	{
+		FileOutputStream outS;
+		ObjectOutputStream dOut;
+		
+		try
+		{
+			if (expFile.exists())
+				expFile.delete();
+			outS = new FileOutputStream(expFile);
+			dOut = new ObjectOutputStream(outS);
+			dOut.writeObject(eS);
+			dOut.flush();
+			dOut.close();
+			return true;
+		} catch (IOException e) 
+		{
+			Log.e(NetworkInfo.class.getCanonicalName(), "Impossible to save experiment file, Safe Stop now");
+			return false;
+			
+		}
+		
+	}
+	
+	private void initIntents() 
 	 {
 		 
 		 mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
@@ -146,7 +281,7 @@ public class NetworkInfoService extends Service {
 		 Intent i=new Intent(this, NetworkInfoService.class);
 
 		 pi=PendingIntent.getService(this, 0, i, 0);
-		 
+		 mgr.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), CLOCK_TIMER, pi);
 		 mBatteryReceiver = new BroadcastReceiver() {
 				@Override
 				public void onReceive(Context context, Intent intent) {
@@ -162,16 +297,13 @@ public class NetworkInfoService extends Service {
 				}
 			};
 		 registerReceiver(cWifiReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
-		 
-		 applicationStart = System.nanoTime();
-		 applicationEnd = applicationStart + DURATION;
 	}
 	 
-	@Override
-	 public int onStartCommand(Intent intent, int flags, int startId) { 
-		writeLogLine(false,false);
-		return START_STICKY;
-	}
+		@Override
+		public int onStartCommand(Intent intent, int flags, int startId) { 
+			writeLogLine(false,false);
+			return START_STICKY;
+		}
 	
 	 protected List<RunningAppProcessInfo> getRunningProcesses(){
 	    	ActivityManager am = (ActivityManager)this.getSystemService(Context.ACTIVITY_SERVICE);;
@@ -200,119 +332,183 @@ public class NetworkInfoService extends Service {
 				{
 					Log.e(NetworkInfoService.class.toString(), "Error while logging service network use");
 				}	
-	 }	 
-	
-	
-	
-	
-	private synchronized void writeLogLine(boolean connectivityChange, boolean batteryChange)
-	{
+	 }	
+	 
+	 public void logNetwork(String now, boolean connectivityChange, boolean batteryChange)
+	 {
 		 info = wifi.getConnectionInfo();	
 		 d_info=wifi.getDhcpInfo();
 		 cm=(ConnectivityManager)this.getSystemService(CONNECTIVITY_SERVICE);
 		 ni=cm.getActiveNetworkInfo();
-		 long now = System.nanoTime();
-		 boolean terminating = applicationEnd < now ;
+		 try
+		 {
+			 String o_string="\n"
+					 + now
+					 + "\t" + mCurrentBatteryLevel
+					 + "\t" + "\"" + info.toString() + "\""
+					 + "\t" + "\"" + (ni != null ? ni.toString() : "\"null\"") + "\""
+					 + "\t" + intToIP(d_info.ipAddress)
+					 + "\t" + intToIP(d_info.serverAddress)
+					 + "\t" + intToIP(d_info.gateway)
+			 		+ "\t" + intToIP(d_info.leaseDuration)
+			 		+ "\t" + intToIP(d_info.netmask)
+			 		+ "\t" + intToIP(d_info.dns1)
+			 		+ "\t" + intToIP(d_info.dns1)
+					 + "\t" +TrafficStats.getTotalRxBytes()
+					 + "\t" +TrafficStats.getTotalTxBytes()
+					 + "\t" +TrafficStats.getTotalRxPackets()
+					 + "\t" +TrafficStats.getTotalTxPackets()
+					 + "\t" +TrafficStats.getMobileRxBytes()
+			 		 + "\t" + connectivityChange
+			 		 + "\t" + batteryChange;
+			 configBfw.append(o_string);
+		} catch (IOException e)
+		{
+				Log.e("Network Info", "Error while writing log file: " + e.getMessage());
+		} 
+	 }
+	
+	private synchronized void writeLogLine(boolean connectivityChange, boolean batteryChange)
+	{
+
+		 long now = System.currentTimeMillis();
 		 ReadCommandThread ipThread = new ReadCommandThread(ipConfBfw, ipConffile.getAbsoluteFile().toString(), 
 				 new String[] {"netcfg"},
 				 0, 1, now+"");
 		 ReadCommandThread netstatThread = new ReadCommandThread(netstatBfw, 
 				 netstatfile.getAbsoluteFile().toString(), new String[] {"netstat"},
 				 0, 1, now+"");
-		 logProcesses(now+"");
-		 
-		 String o_string="\n"
-				 + now
-				 + "\t" + mCurrentBatteryLevel
-				 + "\t" + "\"" + info.toString() + "\""
-				 + "\t" + "\"" + (ni != null ? ni.toString() : "\"null\"") + "\""
-				 + "\t" + intToIP(d_info.ipAddress)
-				 + "\t" + intToIP(d_info.serverAddress)
-				 + "\t" + intToIP(d_info.gateway)
-		 		+ "\t" + intToIP(d_info.leaseDuration)
-		 		+ "\t" + intToIP(d_info.netmask)
-		 		+ "\t" + intToIP(d_info.dns1)
-		 		+ "\t" + intToIP(d_info.dns1)
-				 + "\t" +TrafficStats.getTotalRxBytes()
-				 + "\t" +TrafficStats.getTotalTxBytes()
-				 + "\t" +TrafficStats.getTotalRxPackets()
-				 + "\t" +TrafficStats.getTotalTxPackets()
-				 + "\t" +TrafficStats.getMobileRxBytes()
-		 		 + "\t" + connectivityChange
-		 		 + "\t" + batteryChange;
 
+		 
 	    	try{
-	    			ipThread.start();
-	   		 	netstatThread.start();
-	   		 	ipThread.join();
-	   		 	netstatThread.join();
-	    			Log.i(NetworkInfoService.class.toString(), "Logging Network Status");
-				configBfw.append(o_string);
-				if (lastFlush < 0 || lastFlush < System.nanoTime() - FLUSH_FREQ || terminating) 
+				prepareIteration(now);
+				
+				if (eS.end(now) && eS.isClosed()	)
 				{
-					
-					configBfw.flush();
-					ipConfBfw.flush();
-					netstatBfw.flush();
-					processesBfw.flush();
-					lastFlush = System.nanoTime();
-					Log.i("Network info", "FLUSHING: " + configFileName);
-					
-					if (terminating)
-					{
-						removeIntents();
-						ipThread.join();
-						netstatThread.join();
-						 configBfw.flush();
-						 ipConfBfw.flush();
-						 netstatBfw.flush();
-						 processesBfw.flush();
-						 configBfw.close();
-						 processesBfw.close();
-						 ipConfBfw.close();
-						netstatBfw.close();
-						terminated = true;
-						sendData();
-						this.stopSelf();
-					}
+					this.stopSelf();
+				} else 
+				{
+					conditionalFlush(now);
+		    			ipThread.start();
+		   		 	netstatThread.start();
+		   		 	logProcesses(now+"");
+		   		 	logNetwork(now+"", connectivityChange, batteryChange);
+		   		 	ipThread.join();
+		   		 	netstatThread.join();
+		    			Log.i(NetworkInfoService.class.toString(), "Logging");
 				}
-			} catch(IOException e)
-			{	
-				Log.e("Network Info", "Error while closing log files: " + e.getMessage());
 			} catch(InterruptedException e)
 			{
 				Log.e("Network Info", "Error while waiting for thread to end");
 			}
-			
-		 
 	 }	 
 		
-	private void sendData() {
+	public void onDestroy()
+	{
+		if (eS.end(System.currentTimeMillis()))
+		{
+			endIteration();
+			terminated = true;	
+		}
+		removeIntents();
+	}
+	private void endIteration()
+	{
+		closeFiles();
+		zipFiles();
+		sendData();
+	}
+
+	private void zipFiles() {
+		try
+		{
+			ZipParameters param  = new ZipParameters(null); 
+			param.getInputFiles().add(configfile.getAbsolutePath());
+			param.getInputFiles().add(processesfile.getAbsolutePath());
+			param.getInputFiles().add(ipConffile.getAbsolutePath());
+			param.getInputFiles().add(netstatfile.getAbsolutePath());
+			ZipFiles zip = new ZipFiles(param);
+			Thread thread = new Thread(zip);
+			thread.run();
+			thread.join();
+		} catch (InterruptedException e)
+		{
+			Log.e(NetworkInfoService.class.getCanonicalName(), "Could not wait to compress files for: " + eS.advanceIteration());
+		}
 		
+	}
+
+	private void closeFiles() 
+	{
+		try
+		{
+			flushFiles();
+			 if (configBfw != null) configBfw.close();
+			 if (processesBfw != null) processesBfw.close();
+			 if (ipConfBfw != null) ipConfBfw.close();
+			 if (netstatBfw != null) netstatBfw.close();
+		} catch (IOException e)
+		{
+			Log.e("Network Info", "Error while closing log files: " + e.getMessage());
+		}
+		
+	}
+	
+	private void conditionalFlush(long now)
+	{
+		if (lastFlush < 0 || lastFlush < System.currentTimeMillis() - FLUSH_FREQ) 
+		{
+			lastFlush = now;
+			flushFiles();
+		}
+	}
+	
+	private void flushFiles() 
+	{
+		try
+		{
+			Log.i("Network info", "FLUSHING files: ");
+			 if (configBfw != null) configBfw.flush();
+			 if (ipConfBfw != null) ipConfBfw.flush();
+			 if (netstatBfw != null) netstatBfw.flush();
+			 if (processesBfw != null)  processesBfw.flush();
+		} catch (IOException e)
+		{
+			Log.e("Network Info", "Error while closing log files: " + e.getMessage());
+		}
+		
+	}
+
+	private void sendData() 
+	{	
 		
 		Intent intent=new Intent(this,NrlExpUploadService.class);
 		intent.putExtra(UploadEntry.DELETE_AFTER,false);
-		intent.putExtra(UploadEntry.FILE,configfile.getAbsolutePath());
+		intent.putExtra(UploadEntry.FILE,configfileGzip.getAbsolutePath());
 		intent.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
-		intent.putExtra(UploadEntry.NAME,configFileName);
+		intent.putExtra(UploadEntry.NAME,configFileNameGzip);
+		intent.setAction("ADD");
 		
 		Intent intent2=new Intent(this,NrlExpUploadService.class);
 		intent2.putExtra(UploadEntry.DELETE_AFTER,false);
-		intent2.putExtra(UploadEntry.FILE, ipConffile.getAbsolutePath());
+		intent2.putExtra(UploadEntry.FILE, ipConffileGzip.getAbsolutePath());
 		intent2.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
-		intent2.putExtra(UploadEntry.NAME,ipConfFileName);
+		intent2.putExtra(UploadEntry.NAME,ipConfFileNameGzip);
+		intent2.setAction("ADD");
 		
 		Intent intent3=new Intent(this,NrlExpUploadService.class);
 		intent3.putExtra(UploadEntry.DELETE_AFTER,false);
-		intent3.putExtra(UploadEntry.FILE, netstatfile.getAbsolutePath());
+		intent3.putExtra(UploadEntry.FILE, netstatfileGzip.getAbsolutePath());
 		intent3.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
-		intent3.putExtra(UploadEntry.NAME,netstatFileName);
+		intent3.putExtra(UploadEntry.NAME,netstatFileNameGzip);
+		intent3.setAction("ADD");
 		
 		Intent intent4=new Intent(this,NrlExpUploadService.class);
 		intent4.putExtra(UploadEntry.DELETE_AFTER,false);
-		intent4.putExtra(UploadEntry.FILE, processesfile.getAbsolutePath());
+		intent4.putExtra(UploadEntry.FILE, processesfileGzip.getAbsolutePath());
 		intent4.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
-		intent4.putExtra(UploadEntry.NAME,processesFileName);
+		intent4.putExtra(UploadEntry.NAME,processesFileNameGzip);
+		intent4.setAction("ADD");
 		
 		startService(intent);
 		startService(intent2);

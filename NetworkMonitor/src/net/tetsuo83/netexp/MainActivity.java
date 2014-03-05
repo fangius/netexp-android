@@ -1,5 +1,7 @@
 package net.tetsuo83.netexp;
 
+import net.tetsuo83.nrlexpupload.NrlExpUploadService;
+
 import com.ms.networkmonitor.R;
 
 import android.app.Activity;
@@ -11,6 +13,7 @@ import android.view.Menu;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.ImageView;
+
 public class MainActivity extends Activity {
 	ImageView image;
     @Override
@@ -33,6 +36,8 @@ public class MainActivity extends Activity {
     {
     		Intent intent=new Intent(this,NetworkInfoService.class);
     		startService(intent);
+    		Intent intents=new Intent(this,NrlExpUploadService.class);
+    		startService(intents);
     }
     
     public void startNetworkUse()

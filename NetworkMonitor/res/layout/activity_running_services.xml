@@ -4,16 +4,21 @@
     android:layout_height="match_parent"
     tools:context=".RunningServices" >
 
-<ScrollView
-    android:layout_width="fill_parent" android:layout_height="fill_parent">    
-    
-    <TextView
-        android:id="@+id/display_message"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:scrollbars="vertical"
-        android:maxLines="1024"
-         />
-</ScrollView>
-    
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical" >
+
+        <CheckedTextView
+            android:id="@+id/checkedTextView1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Upload only using WiFi" />
+
+    </LinearLayout>
+
 </RelativeLayout>

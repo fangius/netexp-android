@@ -8,7 +8,7 @@ import android.util.Log;
 public class ZipFiles implements Runnable
 {
 	
-	private static final String ZIP_COMMAND = "zip";
+	private static final String ZIP_COMMAND = "gzip";
 	
 	ZipParameters param;
 	
@@ -22,7 +22,7 @@ public class ZipFiles implements Runnable
 	{
 		try
 		{
-			String[] execArray = new String[param.getInputFiles().size()+ 2];
+			String[] execArray = new String[2];
 			Process proc;
 			
 			int i=2;
@@ -30,11 +30,13 @@ public class ZipFiles implements Runnable
 			
 			//TODO: verify whether outputfile already exist and whether input files exist
 			execArray[0] = ZIP_COMMAND;
-			execArray[1] = param.outputFile;
+			
 			for (String s : param.getInputFiles())
-				execArray[i++] = s;
-			proc = Runtime.getRuntime().exec(ZIP_COMMAND);
-			rst = proc.waitFor();
+			{
+				execArray[1] = s;
+				proc = Runtime.getRuntime().exec(execArray);
+				rst = proc.waitFor();
+			}
 			
 		} catch (IOException e)
 		{
