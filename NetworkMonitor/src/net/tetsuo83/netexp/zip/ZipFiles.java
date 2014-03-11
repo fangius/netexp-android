@@ -10,6 +10,8 @@ public class ZipFiles implements Runnable
 	
 	private static final String ZIP_COMMAND = "gzip";
 	
+	
+	boolean			success = false;
 	ZipParameters param;
 	
 	public ZipFiles(ZipParameters param)
@@ -26,18 +28,25 @@ public class ZipFiles implements Runnable
 			Process proc;
 			
 			int i=2;
-			int rst;
+			int rst = -1;
+			int attempts = 0;
 			
-			//TODO: verify whether outputfile already exist and whether input files exist
+			//TODO: verify whether outputfile already exists and whether input files exist
 			execArray[0] = ZIP_COMMAND;
 			
 			for (String s : param.getInputFiles())
 			{
-				execArray[1] = s;
-				proc = Runtime.getRuntime().exec(execArray);
-				rst = proc.waitFor();
+				rst = -1;
+				attempts = 0;
+				while (rst != 0 && attempts < 3) //TODO: change number of attempts to a parameter in the constructor
+				{
+					execArray[1] = s;
+					proc = Runtime.getRuntime().exec(execArray);
+					rst = proc.waitFor();
+					attempts++;
+				}
 			}
-			
+			success = (rst == 0);
 		} catch (IOException e)
 		{
 			Log.e(ZipFiles.class.getCanonicalName(), "IOError while compressing: " + " thread: " + Thread.currentThread());
@@ -48,5 +57,9 @@ public class ZipFiles implements Runnable
  		
 	}
 	
+	public boolean succeded()
+	{
+		return success;
+	}
 	
 }

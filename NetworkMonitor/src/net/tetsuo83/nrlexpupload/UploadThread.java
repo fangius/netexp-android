@@ -5,6 +5,7 @@ import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -119,6 +120,9 @@ public class UploadThread implements Runnable
 					attempts++;
 					tooManyAttempts = attempts >= MAX_ATTEMPTS;
 				}
+			} catch (FileNotFoundException ex) 
+			{
+				success = true;
 			} catch (Exception ex) //TODO EXTEND LIST OF EXCEPTIONS
 			{
 				attempts++;

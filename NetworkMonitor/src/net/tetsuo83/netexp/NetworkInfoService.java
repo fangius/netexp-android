@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.zip.ZipFile;
 
 import net.tetsuo83.netexp.console.ReadCommandThread;
+import net.tetsuo83.netexp.util.SimpleBinder;
 import net.tetsuo83.netexp.zip.ZipFiles;
 import net.tetsuo83.netexp.zip.ZipParameters;
 import net.tetsuo83.nrlexpupload.NrlExpUploadService;
@@ -50,7 +51,7 @@ import android.util.Log;
 
 public class NetworkInfoService extends Service {
 	
-	private static final int ITERATIONS = 24*7;
+	private static final int ITERATIONS = 24*3;
 	private static final long DURATION = 60L*(1000L)*60L;
 	private static final int CLOCK_TIMER=10000;
 	private static final long FLUSH_FREQ = 60000000000L;
@@ -117,9 +118,9 @@ public class NetworkInfoService extends Service {
     }
 	
 	@Override
-	public IBinder onBind(Intent arg0) {
-		// TODO Auto-generated method stub
-		return null;
+	public IBinder onBind(Intent arg0) 
+	{
+		return new SimpleBinder(this);
 	}
 	 public String intToIP(int i) 
 	 {
@@ -516,6 +517,11 @@ public class NetworkInfoService extends Service {
 		startService(intent4);
 	}
 
+	public ExperimentSchedule getSchedule()
+	{
+		return this.eS;
+	}
+	
 	public void removeIntents()
 	{
 		unregisterReceiver(mBatteryReceiver);

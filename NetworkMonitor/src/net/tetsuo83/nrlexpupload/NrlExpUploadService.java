@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -24,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.net.ssl.HttpsURLConnection;
 
 import net.tetsuo83.netexp.NrlBotConstant;
+import net.tetsuo83.netexp.util.SimpleBinder;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -61,6 +63,7 @@ public class NrlExpUploadService extends Service
 	
 	String dataDirName;
 	File dataDir;
+	
 	@Override
 	public void onCreate()
 	{
@@ -156,12 +159,16 @@ public class NrlExpUploadService extends Service
 		}
 		
 	}
+
+	public PersistedQueue<UploadEntry> queue()
+	{
+		return wQueue;
+	}
 	
 	@Override
-	public IBinder onBind(Intent intent) {
-		
-		// TODO Auto-generated method stub
-		return null;
+	public IBinder onBind(Intent intent) 
+	{
+		return new SimpleBinder<NrlExpUploadService>(this);
 	}
 
 }
