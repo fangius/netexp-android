@@ -14,7 +14,7 @@ import net.tetsuo83.nrlexpupload.UploadEntry;
 import net.tetsuo83.nrlexpupload.UploadThread;
 
 public class TestUploadThread {
-
+ 
 	public static void main(String[] args) throws Exception
 	{
 		AtomicBoolean sync = new AtomicBoolean();

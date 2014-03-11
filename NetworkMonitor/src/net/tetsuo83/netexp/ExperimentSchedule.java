@@ -2,7 +2,7 @@ package net.tetsuo83.netexp;
 
 import java.io.Serializable;
 
-
+ 
 public class ExperimentSchedule implements Serializable
 {
 	

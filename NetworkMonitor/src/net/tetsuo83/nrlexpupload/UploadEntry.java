@@ -9,7 +9,7 @@ import android.content.Intent;
 public class UploadEntry implements Serializable
 {
 	
-	/**
+	/** 
 	 * 
 	 */
 	private static final long serialVersionUID = -2655583067196235900L;

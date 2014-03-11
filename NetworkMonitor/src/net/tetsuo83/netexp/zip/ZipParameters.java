@@ -14,7 +14,7 @@ public class ZipParameters
 		this.inputFiles = i;
 		this.outputFile = o;
 	}
-	
+	 
 	public ZipParameters(String o)
 	{
 		this(o, new ArrayList<String>());

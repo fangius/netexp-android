@@ -18,7 +18,7 @@ import android.util.Log;
 public class PersistedQueue<S extends Serializable>
 {
 	private static final long serialVersionUID = 1087947288222947815L;
-	
+	 
 	File dir;
 	String prefix;
 	

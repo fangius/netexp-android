@@ -44,7 +44,7 @@ public class ReadCommandThread extends Thread
 		this.interval = interval;
 		this.separator = separator;
     }
-	
+	 
 	public void run(){
 		try{		
 				int iterations = 0;

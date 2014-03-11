@@ -101,7 +101,7 @@ public class NrlExpUploadService extends Service
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) 
 	{
-	    try
+	    try 
 	    {
 	    		String action = intent.getAction();
 	    		if (action != null)
