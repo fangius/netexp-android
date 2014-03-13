@@ -27,6 +27,7 @@ import net.tetsuo83.netexp.zip.ZipFiles;
 import net.tetsuo83.netexp.zip.ZipParameters;
 import net.tetsuo83.nrlexpupload.NrlExpUploadService;
 import net.tetsuo83.nrlexpupload.UploadEntry;
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.NotificationManager;
@@ -41,12 +42,16 @@ import android.net.ConnectivityManager;
 import android.net.DhcpInfo;
 import android.net.NetworkInfo;
 import android.net.TrafficStats;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
 import android.os.Environment;
 import android.os.IBinder;
 import android.os.SystemClock;
+import android.telephony.CellInfo;
+import android.telephony.NeighboringCellInfo;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 public class NetworkInfoService extends Service {
@@ -65,6 +70,7 @@ public class NetworkInfoService extends Service {
 	
 	WifiInfo info;
 	DhcpInfo d_info;
+	TelephonyManager tel;
 	WifiManager wifi;
 	ConnectivityManager cm;
 	
@@ -88,6 +94,14 @@ public class NetworkInfoService extends Service {
 	String ipConfFileName;
 	File ipConffileGzip;
 	String ipConfFileNameGzip;
+	
+	FileOutputStream apConfFw;
+	BufferedOutputStream apConfBfw;
+	File apConffile;
+	String apConfFileName;
+	File apConffileGzip;
+	String apConfFileNameGzip;
+	
 	
 	FileOutputStream netstatFw;
 	BufferedOutputStream netstatBfw;
@@ -137,7 +151,7 @@ public class NetworkInfoService extends Service {
 		 
 		 cm=(ConnectivityManager)this.getSystemService(CONNECTIVITY_SERVICE);
 		 wifi = (WifiManager) getSystemService(WIFI_SERVICE);
-	     
+	     tel = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
 		 loadExperiment();
 		 setFiles();
 		 initIntents();
@@ -168,6 +182,8 @@ public class NetworkInfoService extends Service {
 		 ipConfFileNameGzip ="ipConfig"+ eS.getStart() + "." + eS.getCurrentIteration() + ".gz";
 		 netstatFileName="netstat"+ eS.getStart() + "." + eS.getCurrentIteration();
 		 netstatFileNameGzip="netstat"+ eS.getStart() + "." + eS.getCurrentIteration() + ".gz";
+		 apConfFileName ="apConfig"+ eS.getStart() + "." + eS.getCurrentIteration();
+		 apConfFileNameGzip ="apConfig"+ eS.getStart() + "." + eS.getCurrentIteration() + ".gz";
 		 
 		 configfile= new File(dataDir,configFileName);
 		 configfileGzip = new File(dataDir, configFileNameGzip);
@@ -177,6 +193,9 @@ public class NetworkInfoService extends Service {
 		 netstatfileGzip = new File(dataDir, netstatFileNameGzip);
 		 processesfile = new File(dataDir, processesFileName);
 		 processesfileGzip = new File(dataDir, processesFileNameGzip);
+		 
+		 apConffile= new File(dataDir, apConfFileName);
+		 apConffileGzip = new File(dataDir, apConfFileNameGzip);
 		 
 		 try{
 			 configFw=new FileWriter(configfile,true);	
@@ -191,6 +210,9 @@ public class NetworkInfoService extends Service {
 			 
 			 netstatFw= new FileOutputStream(netstatfile, true);
 			 netstatBfw= new BufferedOutputStream(netstatFw);
+			 
+			 apConfFw= new FileOutputStream(apConffile, true);
+			 apConfBfw= new BufferedOutputStream(apConfFw);
 			 
 		 }
 		 catch(IOException e){
@@ -394,6 +416,7 @@ public class NetworkInfoService extends Service {
 		   		 	netstatThread.start();
 		   		 	logProcesses(now+"");
 		   		 	logNetwork(now+"", connectivityChange, batteryChange);
+		   		 	logAP(now+"");
 		   		 	ipThread.join();
 		   		 	netstatThread.join();
 		    			Log.i(NetworkInfoService.class.toString(), "Logging");
@@ -404,6 +427,84 @@ public class NetworkInfoService extends Service {
 			}
 	 }	 
 		
+	private void logAP(String now) 
+	{
+		
+		DataOutputStream dout = new DataOutputStream(apConfBfw);
+		String display_string="\n--------------------" + now + "\n";
+		StringBuilder sbuild = new StringBuilder();
+		try
+		{
+			logCellAp(sbuild, dout);
+			logWifiAp(sbuild, dout);
+			dout.writeChars(display_string);
+			dout.writeChars(sbuild.toString());
+		} catch (IOException e)
+		{
+			Log.e(NetworkInfoService.class.getCanonicalName(), "Could not log APs");
+		}
+		
+	}
+	
+	private void logWifiAp(StringBuilder sbuild, DataOutputStream dout) 
+	{
+		List<ScanResult> infos = wifi.getScanResults();
+		sbuild.append("WiFi:");
+		sbuild.append("\n");
+		if(infos != null)
+		{
+			for (ScanResult s : infos)
+			{
+				sbuild.append(s.toString());
+				sbuild.append("\n");
+			}
+		} else 
+		{
+			sbuild.append("null");
+			sbuild.append("\n");
+		}
+		
+	}
+
+	@SuppressLint("NewApi")
+	private void logCellAp(StringBuilder sbuild, DataOutputStream dout)
+	{
+		List<CellInfo> infos = tel.getAllCellInfo();
+		sbuild.append("Cells:");
+		sbuild.append("\n");
+		if (infos != null)
+		{
+			for (CellInfo c : infos)
+			{
+				sbuild.append(c.toString());
+				sbuild.append("\n");
+			}
+		} else 
+		{
+			List<NeighboringCellInfo> ninfos = tel.getNeighboringCellInfo();
+			if (ninfos != null)
+			{
+				for (NeighboringCellInfo c : ninfos)
+				{
+					sbuild.append(c.getCid());
+					sbuild.append(" ");
+					sbuild.append(c.getLac());
+					sbuild.append(" ");
+					sbuild.append(c.getNetworkType());
+					sbuild.append(" ");
+					sbuild.append(c.getPsc());
+					sbuild.append(" ");
+					sbuild.append(c.getRssi());
+					sbuild.append("\n");
+				}
+			} else 
+			{
+				sbuild.append("null");
+				sbuild.append("\n");
+			}
+		}
+	}
+
 	public void onDestroy()
 	{
 		if (eS.end(System.currentTimeMillis()))
@@ -428,6 +529,7 @@ public class NetworkInfoService extends Service {
 			param.getInputFiles().add(processesfile.getAbsolutePath());
 			param.getInputFiles().add(ipConffile.getAbsolutePath());
 			param.getInputFiles().add(netstatfile.getAbsolutePath());
+			param.getInputFiles().add(apConffile.getAbsolutePath());
 			ZipFiles zip = new ZipFiles(param);
 			Thread thread = new Thread(zip);
 			thread.run();
@@ -447,6 +549,7 @@ public class NetworkInfoService extends Service {
 			 if (configBfw != null) configBfw.close();
 			 if (processesBfw != null) processesBfw.close();
 			 if (ipConfBfw != null) ipConfBfw.close();
+			 if (apConfBfw != null) apConfBfw.close();
 			 if (netstatBfw != null) netstatBfw.close();
 		} catch (IOException e)
 		{
@@ -471,6 +574,7 @@ public class NetworkInfoService extends Service {
 			Log.i("Network info", "FLUSHING files: ");
 			 if (configBfw != null) configBfw.flush();
 			 if (ipConfBfw != null) ipConfBfw.flush();
+			 if (apConfBfw != null) apConfBfw.flush();
 			 if (netstatBfw != null) netstatBfw.flush();
 			 if (processesBfw != null)  processesBfw.flush();
 		} catch (IOException e)
@@ -511,10 +615,18 @@ public class NetworkInfoService extends Service {
 		intent4.putExtra(UploadEntry.NAME,processesFileNameGzip);
 		intent4.setAction("ADD");
 		
+		Intent intent5=new Intent(this,NrlExpUploadService.class);
+		intent5.putExtra(UploadEntry.DELETE_AFTER,false);
+		intent5.putExtra(UploadEntry.FILE, apConffileGzip.getAbsolutePath());
+		intent5.putExtra(UploadEntry.TOKEN,"ef2be8dd60981603904b4d1c18972a8cd6c6e7ac");
+		intent5.putExtra(UploadEntry.NAME,apConfFileNameGzip);
+		intent5.setAction("ADD");
+		
 		startService(intent);
 		startService(intent2);
 		startService(intent3);
 		startService(intent4);
+		startService(intent5);
 	}
 
 	public ExperimentSchedule getSchedule()
